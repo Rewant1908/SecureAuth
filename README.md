@@ -2,10 +2,8 @@
 
 ## About
 
-**SecureAuth** is an AI-powered modular authentication system built in Python with MariaDB. It uses Machine Learning (Isolation Forest algorithm) to learn each user's normal login behavior and assigns a real-time risk score (0-100) to every login attempt. Low-risk logins are allowed instantly, while suspicious logins based on unusual time, location, or device are flagged or blocked automatically. The system also includes a complete security layer with brute force protection (account lockout after 5 failed attempts), rate limiting (20 requests/minute per IP), credential stuffing detection, suspicious user-agent filtering, and full security event logging with severity levels. Built as a group project for **CSE212 Cyber Security** at **Ahmedabad University**, the system is designed to be modular so each team member's module plugs directly into the main authentication API.
-
-**University:** Ahmedabad University
-**Course:** CSE212 - Cyber Security
+**SecureAuth** is an AI-powered modular authentication system built in Python with MariaDB. It uses Machine Learning (Isolation Forest algorithm) to learn each user's normal login behavior and assigns a real-time risk score (0-100) to every login attempt. Low-risk logins are allowed instantly, while suspicious logins based on unusual time, location, or device are flagged or blocked automatically. 
+The system also includes a complete security layer with brute force protection (account lockout after 5 failed attempts), rate limiting (20 requests/minute per IP), credential stuffing detection, suspicious user-agent filtering, and full security event logging with severity levels. Built as a group project for **CSE212 Cyber Security** at **Ahmedabad University**, the system is designed to be modular so each team member's module plugs directly into the main authentication API.
 
 ---
 
