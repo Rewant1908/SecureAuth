@@ -3,7 +3,7 @@ Database Configuration and Connection Manager
 SecureAuth Project
 
 Author: Rewant
-Course: CSE250 Cyber Security
+Course: CSE212 Cyber Security
 """
 
 import pymysql
