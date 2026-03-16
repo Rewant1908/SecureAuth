@@ -1,6 +1,12 @@
 # 🔐 SecureAuth - AI-Powered Authentication System
 
-> CSE212 Cyber Security - Group 2 | Modular Authentication Framework with AI-powered security features
+## About
+
+**SecureAuth** is an AI-powered modular authentication system built in Python with MariaDB. It uses Machine Learning (Isolation Forest algorithm) to learn each user's normal login behavior and assigns a real-time risk score (0-100) to every login attempt. Low-risk logins are allowed instantly, while suspicious logins — based on unusual time, location, or device — are flagged or blocked automatically.
+
+The system also includes a complete security layer with brute force protection (account lockout after 5 failed attempts), rate limiting (20 requests/minute per IP), credential stuffing detection, suspicious user-agent filtering, and full security event logging with severity levels.
+
+Built as a group project for **CSE212 Cyber Security** at **Ahmedabad University**, the system is designed to be modular so each team member's module plugs directly into the main authentication API.
 
 **University:** Ahmedabad University
 **Course:** CSE212 - Cyber Security
@@ -21,7 +27,7 @@
 
 ### 🤖 Module 6: AI Adaptive Authentication
 - Machine Learning (Isolation Forest algorithm) for anomaly detection
-- Risk scoring system (0–100) with LOW / MEDIUM / HIGH levels
+- Risk scoring system (0-100) with LOW / MEDIUM / HIGH levels
 - Learns each user's normal login behavior over time
 - Automatically flags suspicious logins by time, location, and device
 - Recommends: Allow / Extra verification / Block
@@ -55,10 +61,7 @@ pip3 install numpy pandas scikit-learn pymysql --break-system-packages
 
 ### 3. Database Setup
 ```bash
-# Start MariaDB
 sudo service mariadb start
-
-# Login as root
 sudo mariadb
 ```
 
@@ -71,16 +74,12 @@ EXIT;
 ```
 
 ```bash
-# Initialize all tables automatically
 python3 src/database.py
 ```
 
 ### 4. Run Modules
 ```bash
-# Test AI Adaptive Authentication
 python3 src/adaptive/adaptive_auth.py
-
-# Test Security Protection
 python3 src/security/security_protection.py
 ```
 
@@ -114,11 +113,11 @@ SecureAuth/
 ├── src/
 │   ├── adaptive/
 │   │   ├── __init__.py
-│   │   └── adaptive_auth.py           # AI Adaptive Auth Module
+│   │   └── adaptive_auth.py
 │   ├── security/
 │   │   ├── __init__.py
-│   │   └── security_protection.py     # Security Protection Module
-│   └── database.py                    # DB Connection & Table Init
+│   │   └── security_protection.py
+│   └── database.py
 ├── .gitignore
 └── README.md
 ```
@@ -139,10 +138,7 @@ SecureAuth/
 ## 🤝 Contributing (Team)
 
 ```bash
-# Pull latest changes before working
 git pull origin main
-
-# Add your module to src/
 git add src/your_module/
 git commit -m "Added [Your Name]'s [Module Name] module"
 git push origin main
