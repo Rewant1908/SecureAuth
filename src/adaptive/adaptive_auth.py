@@ -113,12 +113,12 @@ class AdaptiveAuthenticator:
         data = []
         for row in rows:
             data.append({
-    		'hour': row['hour'],
-    		'day_of_week': row['day_of_week'],
-    		'ip_address': row['ip_address'],
-    		'user_agent': row['user_agent'],
-    		'timestamp': row['timestamp']
-	})
+                'hour': row['hour'],
+                'day_of_week': row['day_of_week'],
+                'ip_address': row['ip_address'],
+                'user_agent': row['user_agent'],
+                'timestamp': row['timestamp']
+            })
         
         return pd.DataFrame(data)
     
