@@ -26,9 +26,9 @@ import json
 from typing import Dict, Tuple, Optional, List
 
 # Import our advanced modules
-from feature_engineering import AdvancedFeatureExtractor
-from model_persistence import ModelPersistence
-from explainable_ai import ExplainableAI
+from adaptive.feature_engineering import AdvancedFeatureExtractor
+from adaptive.model_persistence import ModelPersistence
+from adaptive.explainable_ai import ExplainableAI
 
 
 class EnsembleAnomalyDetector:
