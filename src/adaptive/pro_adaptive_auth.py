@@ -1,3 +1,4 @@
+import os
 """
 PRO-Level AI Adaptive Authentication
 Enterprise-grade with ensemble ML, explainability, and threat classification
