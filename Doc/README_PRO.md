@@ -221,7 +221,7 @@ This creates the `ai_metrics` table for performance tracking.
 from adaptive.pro_adaptive_auth import ProAdaptiveAuthenticator
 
 # Initialize PRO authenticator
-auth = ProAdaptiveAuthenticator(db_connection, models_dir='models/')
+auth = ProAdaptiveAuthenticator(db_connection, models_dir='../Config/models/')
 
 # Analyze login (same interface, better results!)
 result = auth.analyze_login(user_id=1, login_data={

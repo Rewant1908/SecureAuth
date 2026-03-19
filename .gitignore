@@ -208,5 +208,12 @@ __marimo__/
 
 # ML Models
 models/*.pkl
-models/metadata.json
+Config/models/metadata.json
 venv/
+/.idea/
+
+
+.idea/
+__pycache__/
+*.pyc
+.env
