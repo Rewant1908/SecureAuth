@@ -4,6 +4,7 @@
 # === Core Dependencies ===
 pymysql==1.1.0
 python-dotenv==1.0.0
+Flask==2.3.3
 
 # === Machine Learning - Core ===
 numpy==1.24.3
