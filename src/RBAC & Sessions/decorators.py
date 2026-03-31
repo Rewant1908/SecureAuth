@@ -23,40 +23,15 @@ def require_active_session(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Get Authorization header
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({"error": "Missing or invalid authorization header"}), 401
+        payload, session_info, error_response = _authenticate_request()
+        if error_response:
+            return error_response
 
-        token = auth_header.split(' ')[1]
-
-        # Verify JWT token
-        payload = JWTHandler.verify_token(token)
-        if not payload:
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        user_id = payload.get('user_id')
-        if not user_id:
-            return jsonify({"error": "Invalid token payload"}), 401
-
-        # Check session validity
-        conn = get_connection()
-        session_mgr = SessionManager(conn)
-
-        # For access tokens, we need to validate the session exists
-        # In a more advanced setup, we could store session_id in token
-        # For now, we'll check if user has any active sessions
-        active_sessions = session_mgr.get_user_active_sessions(user_id)
-        if not active_sessions:
-            conn.close()
-            return jsonify({"error": "No active session found"}), 401
-
-        # Store user info in Flask g for use in route
-        g.user_id = user_id
+        g.user_id = payload.get('user_id')
         g.user_role = payload.get('role')
-        g.session_count = len(active_sessions)
+        g.session_id = session_info.get('session_id') if session_info else payload.get('session_id')
+        g.session_count = 1
 
-        conn.close()
         return f(*args, **kwargs)
 
     return decorated_function
@@ -75,48 +50,27 @@ def require_permission(permission_name: str):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            # Get Authorization header
-            auth_header = request.headers.get('Authorization')
-            if not auth_header or not auth_header.startswith('Bearer '):
-                return jsonify({"error": "Missing or invalid authorization header"}), 401
+            payload, session_info, error_response = _authenticate_request()
+            if error_response:
+                return error_response
 
-            token = auth_header.split(' ')[1]
-
-            # Verify JWT token
-            payload = JWTHandler.verify_token(token)
-            if not payload:
-                return jsonify({"error": "Invalid or expired token"}), 401
-
-            user_id = payload.get('user_id')
-            if not user_id:
-                return jsonify({"error": "Invalid token payload"}), 401
-
-            # Check session validity
             conn = get_connection()
-            session_mgr = SessionManager(conn)
+            try:
+                rbac_mgr = RBACManager(conn)
+                user_id = payload.get('user_id')
+                if not rbac_mgr.user_has_permission(user_id, permission_name):
+                    return jsonify({
+                        "error": "Insufficient permissions",
+                        "required_permission": permission_name
+                    }), 403
 
-            # For access tokens, we need to validate the session exists
-            active_sessions = session_mgr.get_user_active_sessions(user_id)
-            if not active_sessions:
+                g.user_id = user_id
+                g.user_role = payload.get('role')
+                g.session_id = session_info.get('session_id') if session_info else payload.get('session_id')
+                g.session_count = 1
+            finally:
                 conn.close()
-                return jsonify({"error": "No active session found"}), 401
 
-            # Check permissions
-            rbac_mgr = RBACManager(conn)
-
-            if not rbac_mgr.user_has_permission(user_id, permission_name):
-                conn.close()
-                return jsonify({
-                    "error": "Insufficient permissions",
-                    "required_permission": permission_name
-                }), 403
-
-            # Store user info in Flask g for use in route
-            g.user_id = user_id
-            g.user_role = payload.get('role')
-            g.session_count = len(active_sessions)
-
-            conn.close()
             return f(*args, **kwargs)
 
         return decorated_function
@@ -183,3 +137,37 @@ def optional_auth(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def _authenticate_request():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None, None, (jsonify({"error": "Missing or invalid authorization header"}), 401)
+
+    token = auth_header.split(' ')[1]
+    payload = JWTHandler.verify_token(token)
+    if not payload:
+        return None, None, (jsonify({"error": "Invalid or expired token"}), 401)
+
+    user_id = payload.get('user_id')
+    if not user_id:
+        return None, None, (jsonify({"error": "Invalid token payload"}), 401)
+
+    conn = get_connection()
+    try:
+        session_mgr = SessionManager(conn)
+        session_id = payload.get('session_id')
+
+        if session_id:
+            session = session_mgr.validate_session(session_id)
+            if not session or session.get('user_id') != user_id:
+                return None, None, (jsonify({"error": "No active session found"}), 401)
+            return payload, session, None
+
+        active_sessions = session_mgr.get_user_active_sessions(user_id)
+        if not active_sessions:
+            return None, None, (jsonify({"error": "No active session found"}), 401)
+
+        return payload, active_sessions[0], None
+    finally:
+        conn.close()

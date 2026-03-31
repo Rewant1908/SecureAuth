@@ -188,6 +188,10 @@ class RBACManager:
             # Simple mapping: admin role gets all permissions
             if user['role'].lower() == 'admin':
                 return True
+            elif user['role'].lower() == 'moderator' and permission_name in [
+                'read_profile', 'update_profile', 'view_security_events'
+            ]:
+                return True
             # user role gets basic permissions
             elif user['role'].lower() == 'user' and permission_name in ['read_profile', 'update_profile']:
                 return True

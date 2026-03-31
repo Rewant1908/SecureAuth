@@ -499,7 +499,9 @@ def refresh():
             return jsonify({"error": "User not found"}), 404
 
         new_access_token = JWTHandler.generate_access_token(
-            user["id"], user.get("role", "user")
+            user["id"],
+            user.get("role", "user"),
+            session_id=session["session_id"],
         )
         new_refresh_token = JWTHandler.generate_refresh_token(user["id"])
         session_manager.rotate_refresh_token(refresh_token, new_refresh_token)
@@ -606,13 +608,17 @@ def _update_last_login(conn, user_id):
 
 
 def _issue_session_tokens(conn, user):
-    access_token = JWTHandler.generate_access_token(user["id"], user.get("role", "user"))
     refresh_token = JWTHandler.generate_refresh_token(user["id"])
     session_id = SessionManager(conn).create_session(
         user["id"],
         refresh_token,
         request.remote_addr or "unknown",
         (request.headers.get("User-Agent") or "")[:255],
+    )
+    access_token = JWTHandler.generate_access_token(
+        user["id"],
+        user.get("role", "user"),
+        session_id=session_id,
     )
 
     return {

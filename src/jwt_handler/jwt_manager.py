@@ -6,12 +6,14 @@ class JWTHandler:
     ALGORITHM = "HS256"
 
     @staticmethod
-    def generate_access_token(user_id, role):
+    def generate_access_token(user_id, role, session_id=None):
         payload = {
             'user_id': user_id,
             'role': role,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
         }
+        if session_id:
+            payload['session_id'] = session_id
         return jwt.encode(payload, JWTHandler.SECRET_KEY, algorithm=JWTHandler.ALGORITHM)
 
     @staticmethod
