@@ -10,7 +10,8 @@ Run:  python -m pytest tests/test_mfa.py -v
 """
 
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
+# Ensure project `src/` is on sys.path so imports like `from mfa...` work.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import time
 import pytest

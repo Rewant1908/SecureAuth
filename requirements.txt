@@ -1,0 +1,17 @@
+Flask
+PyJWT
+bcrypt
+python-dotenv
+PyMySQL
+mysql-connector-python
+numpy
+pandas
+scikit-learn
+joblib
+shap
+twilio
+pytest
+
+# Additional common dev/test/runtime packages used by the project
+coverage
+mock
