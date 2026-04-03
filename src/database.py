@@ -259,8 +259,40 @@ def init_database():
             """
         )
 
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS abac_policies (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                role_id INT NULL,
+                user_id INT NULL,
+                resource_type VARCHAR(100) NOT NULL,
+                action VARCHAR(100) NOT NULL,
+                environment_conditions JSON,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_abac_resource (resource_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS honeypot_events (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ip_address VARCHAR(50) NOT NULL,
+                user_agent VARCHAR(255),
+                endpoint_hit VARCHAR(255) NOT NULL,
+                payload_dump TEXT,
+                severity VARCHAR(20) DEFAULT 'CRITICAL',
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_honeypot_ip (ip_address)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        )
+
         conn.commit()
-        print("All database tables initialized, including MFA, RBAC, and sessions.")
+        print("All database tables initialized, including MFA, RBAC, ABAC, Honeypots, and sessions.")
     finally:
         cursor.close()
         conn.close()

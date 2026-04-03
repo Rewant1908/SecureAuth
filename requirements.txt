@@ -1,6 +1,7 @@
 Flask
 PyJWT
 bcrypt
+argon2-cffi
 python-dotenv
 PyMySQL
 mysql-connector-python

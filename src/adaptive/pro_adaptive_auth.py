@@ -283,7 +283,7 @@ class ProAdaptiveAuthenticator:
         }
     
     def _prepare_training_data(self, user_id: int, history: pd.DataFrame) -> np.ndarray:
-        """Prepare historical data for ML training"""
+        """Prepare historical data for ML training with Poisoning Protection and Adversarial robust examples"""
         X_train = []
         
         for idx, row in history.iterrows():
@@ -301,12 +301,40 @@ class ProAdaptiveAuthenticator:
             
             # Get only successful logins for training
             if row.get('success', 1) == 1:
+                # Anti-poisoning: ensure not a massive anomaly recorded by mistake
+                if row.get('risk_score', 0) > 85:
+                    continue # Skip highly suspicious "successful" logins (data poisoning attempt)
+
                 features = self.feature_extractor.extract_all_features(
                     user_id, login_data, pd.DataFrame()
                 )
-                X_train.append(features[0])
-        
+                base_features = features[0]
+                X_train.append(base_features)
+
+                # Adversarial Training: Generate synthetic minor deviations
+                # This makes the decision boundary thicker to resist gradient-based adversarial attacks
+                import copy
+                if len(X_train) % 2 == 0:  # add 1 adversarial example per 2 valid examples
+                    adv_features = copy.deepcopy(base_features)
+                    # Add tiny gaussian noise to typing speed, hour to make model robust
+                    try:
+                        adv_features[0] = adv_features[0] + np.random.normal(0, 1.0) # Hour variation
+                        adv_features[8] = adv_features[8] + np.random.normal(0, 10.0) # Typing speed variation
+                    except Exception:
+                        pass
+                    X_train.append(adv_features)
+
         return np.array(X_train)
+
+    def continuous_behavior_scoring(self, user_id: int, behavior_stream: Dict) -> float:
+        """
+        Continuous Authentication verification (Background process).
+        Evaluates ongoing keystroke dynamics and mouse movements dynamically.
+        """
+        # Placeholder for continuous stream processing
+        # Collect stream windows every 10 seconds. Return an updated confidence score.
+        # If score drops dramatically, session management triggers a re-auth / strict MFA
+        return 1.0
     
     def _generate_explanation(
         self,

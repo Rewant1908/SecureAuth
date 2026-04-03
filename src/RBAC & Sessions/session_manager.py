@@ -63,15 +63,17 @@ class SessionManager:
 
         return session_id
 
-    def validate_session(self, session_id: str) -> Optional[Dict]:
+    def validate_session(self, session_id: str, current_ip: str = None, current_ua: str = None) -> Optional[Dict]:
         """
         Validate a session and update last seen
-
+        
         Args:
             session_id: Session ID
+            current_ip: Current client IP address to check against bound session
+            current_ua: Current client User-Agent to check against bound session 
 
         Returns:
-            Session data if valid, None if invalid/expired
+            Session data if valid, None if invalid/expired OR if fingerprint changed
         """
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -90,6 +92,17 @@ class SessionManager:
             self.invalidate_session(session_id)
             return None
 
+        # STRICT FINGERPRINTING: Session Hijacking Defense
+        if current_ip and session['ip_address'] and session['ip_address'] != current_ip:
+            # IP address changed abruptly mid-session -> block
+            self.invalidate_session(session_id)
+            return None
+            
+        if current_ua and session['user_agent'] and session['user_agent'] != current_ua:
+            # User Agent changed mid-session -> strong indicator of token theft
+            self.invalidate_session(session_id)
+            return None
+
         # Update last seen
         cursor.execute("""
             UPDATE sessions
@@ -100,15 +113,17 @@ class SessionManager:
 
         return session
 
-    def validate_refresh_token(self, refresh_token: str) -> Optional[Dict]:
+    def validate_refresh_token(self, refresh_token: str, current_ip: str = None, current_ua: str = None) -> Optional[Dict]:
         """
         Validate refresh token against active sessions
 
         Args:
             refresh_token: JWT refresh token
+            current_ip: Client's current IP address
+            current_ua: Client's current User-Agent
 
         Returns:
-            Session data if valid, None if invalid
+            Session data if valid, None if invalid or fingerprint mismatch
         """
         refresh_token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
 
@@ -126,6 +141,15 @@ class SessionManager:
 
         # Check if session is expired
         if datetime.utcnow() > session['expires_at']:
+            self.invalidate_session(session['session_id'])
+            return None
+
+        # STRICT FINGERPRINTING: Session Hijacking Defense
+        if current_ip and session['ip_address'] and session['ip_address'] != current_ip:
+            self.invalidate_session(session['session_id'])
+            return None
+            
+        if current_ua and session['user_agent'] and session['user_agent'] != current_ua:
             self.invalidate_session(session['session_id'])
             return None
 

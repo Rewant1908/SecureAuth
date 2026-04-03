@@ -119,17 +119,18 @@ class SecurityProtection:
         """, (username,))
         self.conn.commit()
     
-    def check_rate_limit(self, identifier: str) -> Tuple[bool, int]:
+    def check_rate_limit(self, identifier: str) -> Tuple[bool, int, float]:
         """
-        Check rate limiting (prevent too many requests)
+        Check rate limiting with Tarpitting (prevent too many requests by slowing them exponentially)
         
         Args:
             identifier: IP address or user identifier
             
         Returns:
-            Tuple of (is_allowed, remaining_requests)
-            - is_allowed: True if request is allowed
+            Tuple of (is_allowed, remaining_requests, delay_seconds)
+            - is_allowed: True if request is allowed normally
             - remaining_requests: How many requests left in window
+            - delay_seconds: How many seconds to sleep (tarpit) if limit exceeded
         """
         now = datetime.utcnow()
         window_start = now - timedelta(seconds=self.rate_limit_window_seconds)
@@ -140,17 +141,17 @@ class SecurityProtection:
             if req_time > window_start
         ]
         
-        # Check if limit exceeded
         request_count = len(self.rate_limit_store[identifier])
+        self.rate_limit_store[identifier].append(now)
         
         if request_count >= self.max_requests_per_window:
-            return False, 0
+            excess = request_count - self.max_requests_per_window + 1
+            delay_seconds = min(float(2 ** (excess - 1)), 30.0)  # exponential up to 30s
+            return False, 0, delay_seconds
         
-        # Add current request
-        self.rate_limit_store[identifier].append(now)
         remaining = self.max_requests_per_window - request_count - 1
         
-        return True, remaining
+        return True, remaining, 0.0
     
     def detect_credential_stuffing(self, ip_address: str, time_window_minutes: int = 5) -> bool:
         """
@@ -275,6 +276,16 @@ class SecurityProtection:
         token = secrets.token_urlsafe(32)
         # In production, store this in session or database
         return token
+
+    def generate_client_fingerprint(self, ip_address: str, user_agent: str, headers_dict: dict) -> str:
+        """
+        Generate a device-specific fingerprint for tracking sessions via TLS/Header proxy logic
+        """
+        fingerprint_data = f"{ip_address}|{user_agent}"
+        for key in sorted(headers_dict.keys()):
+            if key.lower() in ('accept-language', 'accept-encoding', 'dnt', 'x-forwarded-for'):
+                fingerprint_data += f"|{key.lower()}:{headers_dict[key]}"
+        return hashlib.sha256(fingerprint_data.encode()).hexdigest()
 
 
 # ============================================================================

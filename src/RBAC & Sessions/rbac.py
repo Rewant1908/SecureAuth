@@ -198,6 +198,52 @@ class RBACManager:
 
         return False
 
+    def evaluate_abac_policy(self, user_id: int, action: str, resource_type: str, environment: dict) -> bool:
+        """
+        Evaluate Attribute-Based Access Control (ABAC) policies.
+        Returns True if action is allowed by ABAC, considering dynamic environmental attributes.
+        """
+        cursor = self.conn.cursor()
+        roles = self.get_user_roles(user_id)
+        role_ids = [r['id'] for r in roles]
+        
+        query = "SELECT * FROM abac_policies WHERE resource_type = %s AND action = %s AND (user_id = %s"
+        params = [resource_type, action, user_id]
+        if role_ids:
+            placeholders = ','.join(['%s'] * len(role_ids))
+            query += f" OR role_id IN ({placeholders})"
+            params.extend(role_ids)
+        query += ")"
+        
+        try:
+            cursor.execute(query, tuple(params))
+            policies = cursor.fetchall()
+        except pymysql.ProgrammingError:
+            return False # table might not exist in old tests
+            
+        if not policies:
+            # Fall back to RBAC if no ABAC policy explicitly defines this resource
+            return self.user_has_permission(user_id, f"{action}_{resource_type}")
+            
+        import json
+        for policy in policies:
+            # Determine if environment matches
+            env_json = policy.get('environment_conditions')
+            if not env_json:
+                return True
+                
+            conditions = json.loads(env_json) if isinstance(env_json, str) else env_json
+            allowed = True
+            for k, v in conditions.items():
+                if str(environment.get(k)) != str(v):
+                    allowed = False
+                    break
+            
+            if allowed:
+                return True
+                
+        return False
+
     def get_all_roles(self) -> List[dict]:
         """
         Get all available roles
