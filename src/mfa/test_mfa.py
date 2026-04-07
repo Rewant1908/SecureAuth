@@ -1,11 +1,11 @@
 """
-tests/test_mfa.py
+src/mfa/test_mfa.py
 ──────────────────────────────────────────────────────────────────────────────
 Full test suite for the MFA module.
 SecureAuth | CSE212 Cyber Security | Ahmedabad University
 Author: Ansh (AU2320008)
 
-Run:  python -m pytest tests/test_mfa.py -v
+Run:  python -m pytest src/mfa/test_mfa.py -v
 ──────────────────────────────────────────────────────────────────────────────
 """
 
