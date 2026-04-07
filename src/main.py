@@ -100,7 +100,7 @@ def _bootstrap_application():
     try:
         RBACManager(conn).initialize_default_roles_and_permissions()
     finally:
-        conn.close()
+        nconn.close()
 
 
 _bootstrap_application()
