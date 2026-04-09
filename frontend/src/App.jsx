@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API = "http://localhost:5000";
+const API = "https://secureauth-production.up.railway.app/";
 
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${API}${path}`, {
