@@ -10,7 +10,34 @@ async function apiFetch(path, options = {}) {
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
 }
+function PasswordInput({ password, setPassword, onEnter }) {
+  const [showPassword, setShowPassword] = useState(false);
 
+  return (
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "#1e2840", borderRadius: "10px", padding: "0 16px" }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5580" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••••••"
+            onKeyDown={e => e.key === "Enter" && onEnter()}
+            style={{ flex: 1, padding: "14px 0", background: "transparent", border: "none", outline: "none", color: "#dae2fd", fontSize: "15px" }}
+        />
+        <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "0", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          {showPassword ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4cd6ff" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5580" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          )}
+        </button>
+      </div>
+  );
+}
 export default function App() {
   const [page, setPage] = useState("simulator");
   const [username, setUsername] = useState("");
@@ -19,7 +46,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // MFA state
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaToken, setMfaToken] = useState("");
   const [mfaMethod, setMfaMethod] = useState("");
@@ -27,7 +53,6 @@ export default function App() {
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState("");
 
-  // Session
   const [session, setSession] = useState(null);
 
   const scenarios = {
@@ -43,10 +68,7 @@ export default function App() {
   };
 
   const handleAnalyze = async () => {
-    if (!username || !password) {
-      setError("Username and password are required.");
-      return;
-    }
+    if (!username || !password) { setError("Username and password are required."); return; }
     setLoading(true);
     setError("");
 
@@ -57,52 +79,24 @@ export default function App() {
 
     setLoading(false);
 
-    // MFA required
     if (status === 200 && data.mfa_required) {
       setMfaToken(data.mfa_token);
       setMfaMethod(data.mfa_method);
       setMfaRequired(true);
-      setResult({
-        status: "mfa_required",
-        mfa_method: data.mfa_method,
-        risk_score: data.risk_score,
-        risk_level: data.risk_level,
-        otp_sent: data.otp_sent,
-        delivery_message: data.delivery_message,
-      });
+      setResult({ status: "mfa_required", mfa_method: data.mfa_method, risk_score: data.risk_score, risk_level: data.risk_level, otp_sent: data.otp_sent, delivery_message: data.delivery_message });
       setPage("dashboard");
       return;
     }
 
-    // Blocked / error
     if (!ok) {
       setError(data.error || "Login failed.");
-      setResult({
-        status: "blocked",
-        error: data.error,
-        risk_score: data.risk_score,
-        risk_level: data.risk_level,
-        unlock_time: data.unlock_time,
-      });
+      setResult({ status: "blocked", error: data.error, risk_score: data.risk_score, risk_level: data.risk_level });
       setPage("dashboard");
       return;
     }
 
-    // Success
-    setSession({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      session_id: data.session_id,
-      roles: data.roles,
-    });
-    setResult({
-      status: "success",
-      risk_score: data.risk_score,
-      risk_level: data.risk_level,
-      roles: data.roles,
-      session_id: data.session_id,
-      message: data.message,
-    });
+    setSession({ access_token: data.access_token, refresh_token: data.refresh_token, session_id: data.session_id, roles: data.roles });
+    setResult({ status: "success", risk_score: data.risk_score, risk_level: data.risk_level, roles: data.roles, session_id: data.session_id, message: data.message });
     setPage("dashboard");
   };
 
@@ -112,28 +106,15 @@ export default function App() {
     setMfaError("");
 
     const endpoint = mfaMethod === "totp" ? "/api/mfa/totp/verify" : "/api/mfa/verify";
-    const body = mfaMethod === "totp"
-        ? { mfa_token: mfaToken, code: mfaCode }
-        : { mfa_token: mfaToken, code: mfaCode };
-
     const { ok, data } = await apiFetch(endpoint, {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({ mfa_token: mfaToken, code: mfaCode }),
     });
 
     setMfaLoading(false);
+    if (!ok) { setMfaError(data.error || "Invalid code."); return; }
 
-    if (!ok) {
-      setMfaError(data.error || "Invalid code.");
-      return;
-    }
-
-    setSession({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      session_id: data.session_id,
-      roles: data.roles,
-    });
+    setSession({ access_token: data.access_token, refresh_token: data.refresh_token, session_id: data.session_id, roles: data.roles });
     setMfaRequired(false);
     setResult(prev => ({ ...prev, status: "success", message: data.message, roles: data.roles }));
   };
@@ -158,7 +139,7 @@ export default function App() {
   return (
       <div style={{ minHeight: "100vh", background: "#0b1326", color: "#dae2fd", fontFamily: "'Inter', sans-serif" }}>
 
-        {/* ── NAVBAR ── */}
+        {/* NAVBAR */}
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
           height: "56px", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -181,22 +162,20 @@ export default function App() {
             ))}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8a97b8" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8a97b8" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-            <div style={{
-              background: session ? "linear-gradient(135deg,#4cd6ff,#009dc1)" : "#1e2840",
-              color: session ? "#001f2a" : "#8a97b8",
-              padding: "5px 14px", borderRadius: "999px",
-              fontSize: "11px", fontWeight: 800, letterSpacing: "0.06em",
-              cursor: session ? "pointer" : "default",
-            }} onClick={session ? handleLogout : undefined}>
-              {session ? "LOGOUT" : "PROTECTED"}
-            </div>
+          <div
+              onClick={session ? handleLogout : undefined}
+              style={{
+                background: session ? "linear-gradient(135deg,#4cd6ff,#009dc1)" : "#1e2840",
+                color: session ? "#001f2a" : "#8a97b8",
+                padding: "5px 14px", borderRadius: "999px",
+                fontSize: "11px", fontWeight: 800, letterSpacing: "0.06em",
+                cursor: session ? "pointer" : "default",
+              }}>
+            {session ? "LOGOUT" : "PROTECTED"}
           </div>
         </div>
 
-        {/* ── SIDEBAR ── */}
+        {/* SIDEBAR */}
         <div style={{
           position: "fixed", top: 0, left: 0, bottom: 0, width: "240px", zIndex: 50,
           background: "#131b2e", display: "flex", flexDirection: "column",
@@ -212,26 +191,25 @@ export default function App() {
             <NavItem icon="dashboard"   label="Result Dashboard" active={page==="dashboard"} onClick={() => setPage("dashboard")} />
           </nav>
 
+          {/* User info at bottom */}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#2d3449", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#2d3449", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a97b8" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               </div>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: 600 }}>
-                  {session?.roles?.[0] ? session.roles[0] : "System Operator"}
+                  {session?.roles?.[0] ?? "System Operator"}
                 </div>
                 <div style={{ fontSize: "11px", color: "#8a97b8" }}>
                   {session ? "Authenticated" : "Root Access"}
                 </div>
               </div>
             </div>
-            <NavItem icon="settings" label="Settings"  active={false} onClick={() => {}} />
-            <NavItem icon="demo"     label="Demo Mode" active={false} onClick={() => {}} />
           </div>
         </div>
 
-        {/* ── CONTENT ── */}
+        {/* CONTENT */}
         <div style={{ marginLeft: "240px", paddingTop: "56px", minHeight: "100vh" }}>
           {page === "simulator"
               ? <SimulatorPage
@@ -254,13 +232,10 @@ export default function App() {
   );
 }
 
-/* ── NAV ITEM ── */
 function NavItem({ icon, label, active, onClick }) {
   const icons = {
-    fingerprint: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22C6 22 2 17.5 2 12S6 2 12 2s10 4.5 10 10"/><path d="M12 18c-2.5 0-4-2-4-4s1.5-4 4-4 4 2 4 4"/><line x1="12" y1="14" x2="12" y2="14"/></svg>,
+    fingerprint: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22C6 22 2 17.5 2 12S6 2 12 2s10 4.5 10 10"/><path d="M12 18c-2.5 0-4-2-4-4s1.5-4 4-4 4 2 4 4"/></svg>,
     dashboard:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
-    settings:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-    demo:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
   };
   return (
       <div onClick={onClick} style={{
@@ -272,14 +247,12 @@ function NavItem({ icon, label, active, onClick }) {
         transition: "all 0.2s", marginBottom: "2px"
       }}
            onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-           onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
-      >
+           onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
         {icons[icon]}{label}
       </div>
   );
 }
 
-/* ── SIMULATOR PAGE ── */
 function SimulatorPage({ username, password, loading, error, setUsername, setPassword, onAnalyze, onScenario }) {
   return (
       <div style={{ padding: "56px 64px", maxWidth: "900px" }}>
@@ -292,32 +265,73 @@ function SimulatorPage({ username, password, loading, error, setUsername, setPas
           </p>
         </div>
 
-        <div style={{ background: "#171f33", borderRadius: "24px", padding: "40px", maxWidth: "520px", marginBottom: "32px", boxShadow: "12px 24px 48px rgba(218,226,253,0.06)" }}>
-          {/* Username */}
-          <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a97b8", marginBottom: "8px" }}>Username</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "#1e2840", borderRadius: "10px", padding: "0 16px" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5580" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <div style={{
+          background: "#171f33",
+          borderRadius: "24px",
+          padding: "40px",
+          maxWidth: "520px",
+          marginBottom: "32px",
+          boxShadow: "12px 24px 48px rgba(218,226,253,0.06)"
+        }}>
+          <div style={{marginBottom: "20px"}}>
+            <div style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#8a97b8",
+              marginBottom: "8px"
+            }}>Username
+            </div>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              background: "#1e2840",
+              borderRadius: "10px",
+              padding: "0 16px"
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5580" strokeWidth="2">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+              </svg>
               <input value={username} onChange={e => setUsername(e.target.value)}
                      placeholder="e.g. sentinel_operator"
-                     style={{ flex: 1, padding: "14px 0", background: "transparent", border: "none", outline: "none", color: "#dae2fd", fontSize: "15px" }} />
+                     style={{
+                       flex: 1,
+                       padding: "14px 0",
+                       background: "transparent",
+                       border: "none",
+                       outline: "none",
+                       color: "#dae2fd",
+                       fontSize: "15px"
+                     }}/>
             </div>
           </div>
 
-          {/* Password */}
-          <div style={{ marginBottom: "28px" }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a97b8", marginBottom: "8px" }}>Password</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "#1e2840", borderRadius: "10px", padding: "0 16px" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5580" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <input value={password} onChange={e => setPassword(e.target.value)}
-                     type="password" placeholder="••••••••••••"
-                     onKeyDown={e => e.key === "Enter" && onAnalyze()}
-                     style={{ flex: 1, padding: "14px 0", background: "transparent", border: "none", outline: "none", color: "#dae2fd", fontSize: "15px" }} />
+          <div style={{marginBottom: "28px"}}>
+            <div style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#8a97b8",
+              marginBottom: "8px"
+            }}>Password
             </div>
+            <PasswordInput password={password} setPassword={setPassword} onEnter={onAnalyze}/>
           </div>
 
           {error && (
-              <div style={{ marginBottom: "16px", padding: "12px 16px", background: "rgba(255,180,171,0.1)", border: "1px solid rgba(255,180,171,0.25)", borderRadius: "8px", fontSize: "13px", color: "#ffb4ab" }}>
+              <div style={{
+                marginBottom: "16px",
+                padding: "12px 16px",
+                background: "rgba(255,180,171,0.1)",
+                border: "1px solid rgba(255,180,171,0.25)",
+                borderRadius: "8px",
+                fontSize: "13px",
+                color: "#ffb4ab"
+              }}>
                 {error}
               </div>
           )}
@@ -333,20 +347,33 @@ function SimulatorPage({ username, password, loading, error, setUsername, setPas
             boxShadow: loading ? "none" : "0 0 24px rgba(76,214,255,0.2)",
             transition: "all 0.15s"
           }}
-                  onMouseDown={e => { if (!loading) e.currentTarget.style.transform = "scale(0.98)"; }}
-                  onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-            {loading ? (
-                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Analyzing...</>
-            ) : (
-                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Analyze Login</>
-            )}
+                  onMouseDown={e => {
+                    if (!loading) e.currentTarget.style.transform = "scale(0.98)";
+                  }}
+                  onMouseUp={e => {
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}>
+            {loading
+                ? <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                       style={{animation: "spin 1s linear infinite"}}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                  </svg>
+                  Analyzing...</>
+                : <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                  </svg>
+                  Analyze Login</>
+            }
           </button>
         </div>
 
-        {/* Demo Scenarios */}
-        <div style={{ background: "#131b2e", borderRadius: "16px", padding: "28px", maxWidth: "520px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a97b8" }}>Demo Scenarios</span>
+        <div style={{background: "#131b2e", borderRadius: "16px", padding: "28px", maxWidth: "520px"}}>
+          <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px"}}>
+            <span style={{
+              fontSize: "11px",
+              fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a97b8" }}>Demo Scenarios</span>
             <span style={{ fontSize: "11px", color: "#4a5580", letterSpacing: "0.06em", textTransform: "uppercase" }}>Select Preset</span>
           </div>
           <div style={{ display: "flex", gap: "12px" }}>
@@ -381,7 +408,6 @@ function ScenarioBtn({ label, color, onClick }) {
   );
 }
 
-/* ── DASHBOARD PAGE ── */
 function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mfaLoading, mfaError, onMfaVerify, session }) {
   const score = result?.risk_score ?? 0;
   const level = (result?.risk_level ?? "LOW").toUpperCase();
@@ -389,13 +415,11 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
   const circumference = 2 * Math.PI * 52;
   const dashOffset = circumference - (score / 100) * circumference;
 
-  if (!result) {
-    return (
-        <div style={{ padding: "80px 48px", color: "#8a97b8", fontSize: "15px" }}>
-          No results yet. Run a login simulation first.
-        </div>
-    );
-  }
+  if (!result) return (
+      <div style={{ padding: "80px 48px", color: "#8a97b8", fontSize: "15px" }}>
+        No results yet. Run a login simulation first.
+      </div>
+  );
 
   const decisionColor = result.status === "success" ? "#4cffb0" : result.status === "blocked" ? "#ffb4ab" : "#ffc04c";
   const decisionLabel = result.status === "success" ? "ACCESS GRANTED" : result.status === "blocked" ? "ACCESS BLOCKED" : "MFA REQUIRED";
@@ -403,12 +427,12 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
       ? "Authentication successful. Session tokens issued."
       : result.status === "blocked"
           ? (result.error || "High risk login blocked by AI Sentinel.")
-          : "The AI Sentinel detected unusual login patterns. Secondary verification required.";
+          : "AI Sentinel detected unusual patterns. Secondary verification required.";
 
   return (
       <div style={{ padding: "40px 48px" }}>
 
-        {/* Top row */}
+        {/* Top 3 cards */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
 
           {/* Risk Ring */}
@@ -443,25 +467,16 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
             </div>
             <p style={{ fontSize: "13px", color: "#8a97b8", lineHeight: 1.7 }}>{decisionDesc}</p>
 
-            {/* MFA Input */}
             {mfaRequired && (
                 <div style={{ marginTop: "20px" }}>
                   <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a97b8", marginBottom: "8px" }}>
                     Enter {mfaMethod?.toUpperCase()} Code
                   </div>
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <input
-                        value={mfaCode}
-                        onChange={e => setMfaCode(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && onMfaVerify()}
-                        placeholder="000000"
-                        maxLength={6}
-                        style={{
-                          flex: 1, padding: "10px 14px", background: "#1e2840",
-                          border: "1px solid rgba(76,214,255,0.2)", borderRadius: "8px",
-                          color: "#dae2fd", fontSize: "18px", fontFamily: "'JetBrains Mono',monospace",
-                          letterSpacing: "0.2em", outline: "none", textAlign: "center"
-                        }}
+                    <input value={mfaCode} onChange={e => setMfaCode(e.target.value)}
+                           onKeyDown={e => e.key === "Enter" && onMfaVerify()}
+                           placeholder="000000" maxLength={6}
+                           style={{ flex: 1, padding: "10px 14px", background: "#1e2840", border: "1px solid rgba(76,214,255,0.2)", borderRadius: "8px", color: "#dae2fd", fontSize: "18px", fontFamily: "'JetBrains Mono',monospace", letterSpacing: "0.2em", outline: "none", textAlign: "center" }}
                     />
                     <button onClick={onMfaVerify} disabled={mfaLoading} style={{
                       padding: "10px 16px", background: "linear-gradient(135deg,#4cd6ff,#009dc1)",
@@ -489,8 +504,8 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
               <div style={{ width: `${score}%`, height: "100%", background: `linear-gradient(to right, ${ringColor}88, ${ringColor})`, borderRadius: "4px", transition: "width 1s ease" }}/>
             </div>
             {session && (
-                <div style={{ marginTop: "16px", fontSize: "11px", color: "#4cffb0", fontFamily: "'JetBrains Mono',monospace" }}>
-                  SESSION: {session.session_id?.slice(0,16)}...
+                <div style={{ marginTop: "16px", fontSize: "11px", color: "#4cd6ff", fontFamily: "'JetBrains Mono',monospace" }}>
+                  SESSION ACTIVE
                 </div>
             )}
           </div>
@@ -510,12 +525,11 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
               {session ? "LIVE" : "PENDING"}
             </span>
             </div>
-
             {[
-              { label: "MFA Method",   value: result.mfa_method?.toUpperCase() || (session ? "NONE" : "—"), accent: false },
-              { label: "Session ID",   value: session?.session_id ? session.session_id.slice(0,20)+"..." : "—", accent: true },
-              { label: "Roles",        value: session?.roles?.join(", ") || "—", accent: false },
-              { label: "Risk Score",   value: `${Math.round(score)} / 100`, accent: false },
+              { label: "MFA Method",  value: result.mfa_method?.toUpperCase() || (session ? "NONE" : "—"), accent: false },
+              { label: "Session ID",  value: session?.session_id ? session.session_id.slice(0,20)+"..." : "—", accent: true },
+              { label: "Roles",       value: session?.roles?.join(", ") || "—", accent: false },
+              { label: "Risk Score",  value: `${Math.round(score)} / 100`, accent: false },
             ].map((row, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
                   <span style={{ fontSize: "13px", color: "#8a97b8" }}>{row.label}</span>
@@ -526,11 +540,9 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
 
           {/* Security Logs */}
           <div style={{ background: "#171f33", borderRadius: "24px", padding: "32px", boxShadow: "12px 24px 48px rgba(218,226,253,0.06)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "28px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4cd6ff" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: "16px" }}>Security Logs</span>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "28px" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4cd6ff" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: "16px" }}>Security Logs</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               {[
@@ -567,6 +579,7 @@ function DashboardPage({ result, mfaRequired, mfaMethod, mfaCode, setMfaCode, mf
           {JSON.stringify(result, null, 2)}
         </pre>
         </div>
+
       </div>
   );
 }

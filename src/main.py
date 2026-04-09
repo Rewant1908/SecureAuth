@@ -54,6 +54,30 @@ require_permission = auth_package.require_permission
 
 app = Flask(__name__)
 CORS(app)
+@app.route("/create-user")
+def create_user():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    ph = PasswordHasher()
+
+    username = "admin"
+    email = "admin@test.com"
+    password = "admin123"
+
+    hashed = ph.hash(password)
+
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, email, password_hash, is_active) VALUES (%s, %s, %s, 1)",
+            (username, email, hashed)
+        )
+        conn.commit()
+        return "User created: admin / admin123"
+    except Exception as e:
+        return f"Error: {str(e)}"
+    finally:
+        conn.close()
 app.register_blueprint(active_defense_bp)
 MFA_TOKEN_MINUTES = int(os.getenv("MFA_TOKEN_MINUTES", "10"))
 

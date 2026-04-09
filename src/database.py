@@ -408,6 +408,23 @@ def remove_backup_hash(conn, user_id, matched_hash):
     )
     conn.commit()
     cursor.close()
+def remove_backup_hash(conn, user_id, matched_hash):
+    row = get_totp_secret(conn, user_id)
+    if not row:
+        return
+
+    updated_hashes = [item for item in row["backup_hashes"] if item != matched_hash]
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE mfa_totp_secrets
+        SET backup_hashes = %s, last_used_at = CURRENT_TIMESTAMP
+        WHERE user_id = %s
+        """,
+        (json.dumps(updated_hashes), user_id),
+    )
+    conn.commit()
+    cursor.close()
 
 
 if __name__ == "__main__":
