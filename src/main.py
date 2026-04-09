@@ -3,7 +3,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-
+from flask_cors import CORS
 import bcrypt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -53,6 +53,7 @@ require_permission = auth_package.require_permission
 
 
 app = Flask(__name__)
+CORS(app)
 app.register_blueprint(active_defense_bp)
 MFA_TOKEN_MINUTES = int(os.getenv("MFA_TOKEN_MINUTES", "10"))
 
@@ -100,7 +101,7 @@ def _bootstrap_application():
     try:
         RBACManager(conn).initialize_default_roles_and_permissions()
     finally:
-        nconn.close()
+        conn.close()
 
 
 _bootstrap_application()
