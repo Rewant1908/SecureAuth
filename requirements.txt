@@ -12,7 +12,7 @@ joblib
 shap
 twilio
 pytest
-
+flask-cors
 # Additional common dev/test/runtime packages used by the project
 coverage
 mock
