@@ -18,6 +18,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", "SecurePass123!"),
     "database": os.getenv("DB_NAME", "secureauth_db"),
     "charset": "utf8mb4",
+    "connect_timeout": 30,
     "cursorclass": DictCursor,
 }
 
